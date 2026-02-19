@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "570638068445",
+    "project_id": "dinsctor",
+    "storage_bucket": "dinsctor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:570638068445:android:e075f85fd6c06a8f1d4934",
+        "android_client_info": {
+          "package_name": "com.example.dinsctor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBeH-xjQWJDM42qR2qHiW0bcOqK2ICit7Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
