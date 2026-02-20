@@ -1,8 +1,7 @@
-// lib/services/attendance_service.dart
 import 'dart:async';
 import 'dart:math';
-import 'package:firebase_auth/firebase_auth.dart'; //
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AttendanceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -26,7 +25,9 @@ class AttendanceService {
       if (doc.exists) {
         await _db.collection('sessions').doc(code).update({
           'status': 'linked',
-          'teacherName': _auth.currentUser?.displayName ?? "Teacher", // Save the name
+          'className': className,
+          'teacherId': _auth.currentUser?.uid,
+          'teacherName': _auth.currentUser?.displayName ?? "Teacher",
         });
         return true;
       }
@@ -39,9 +40,7 @@ class AttendanceService {
   void startBroadcasting(String displayCode, {int seconds = 7}) {
     _rotationTimer?.cancel();
     _rotationTimer = Timer.periodic(Duration(seconds: seconds), (timer) async {
-      // Generate a new unique token
       String newToken = (100000 + Random().nextInt(900000)).toString();
-
       await _db.collection('sessions').doc(displayCode).update({
         'status': 'active',
         'currentToken': newToken,
@@ -52,10 +51,9 @@ class AttendanceService {
 
   void stopBroadcasting(String code) async {
     _rotationTimer?.cancel();
-    // Security: Wipe the token so old pictures cannot be used
     await _db.collection('sessions').doc(code).update({
       'status': 'stopped',
-      'currentToken': '',
+      'currentToken': '', // Wipes the QR code
     });
   }
 
@@ -71,47 +69,25 @@ class AttendanceService {
     String sessionId = snapshot.docs.first.id;
     await _db.collection('sessions').doc(sessionId).collection('attendance').add({
       'studentName': studentName,
+      'studentId': _auth.currentUser?.uid, // FIXED: Saves ID so they can leave later!
       'timestamp': FieldValue.serverTimestamp(),
     });
     return true;
   }
-  // lib/services/attendance_service.dart
 
-// Method for the teacher to remove a student from the session
-  Future<void> kickStudent(String sessionId, String studentId) async {
-    try {
-      // Locate the specific attendance document for this student
-      var snapshot = await _db
-          .collection('sessions')
-          .doc(sessionId)
-          .collection('attendance')
-          .where('studentId', isEqualTo: studentId)
-          .get();
-
-      for (var doc in snapshot.docs) {
-        await doc.reference.delete(); // Remove the record
-      }
-    } catch (e) {
-      print("Error kicking student: $e");
-    }
+  // NEW: Teacher kicks student using Document ID
+  Future<void> kickStudent(String sessionId, String attendanceDocId) async {
+    await _db.collection('sessions').doc(sessionId).collection('attendance').doc(attendanceDocId).delete();
   }
 
-// Allows a student to remove themselves (Leave)
+  // NEW: Student leaves by searching for their ID
   Future<void> leaveClassroom(String sessionId) async {
-    String? uid = FirebaseAuth.instance.currentUser?.uid;
+    String? uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    var snapshot = await _db
-        .collection('sessions')
-        .doc(sessionId)
-        .collection('attendance')
-        .where('studentId', isEqualTo: uid)
-        .get();
-
+    var snapshot = await _db.collection('sessions').doc(sessionId).collection('attendance').where('studentId', isEqualTo: uid).get();
     for (var doc in snapshot.docs) {
-      await doc.reference.delete();
+      await doc.reference.delete(); // Removes them from list
     }
   }
-
-
 }

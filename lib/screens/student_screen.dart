@@ -153,8 +153,9 @@ class _StudentScreenState extends State<StudentScreen> {
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: () async {
+                      // Actually removes them from the database list
                       await _service.leaveClassroom(_activeSessionId!);
-                      setState(() => _activeSessionId = null);
+                      setState(() => _activeSessionId = null); // Returns to scanner
                     },
                     icon: const Icon(Icons.exit_to_app, color: Colors.orange),
                     label: const Text("Leave Classroom", style: TextStyle(color: Colors.orange)),

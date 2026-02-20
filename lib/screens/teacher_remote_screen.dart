@@ -148,23 +148,19 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
-        final docs = snapshot.data!.docs;
-
-        return ListView.builder(
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final data = docs[index].data() as Map<String, dynamic>;
-            final studentId = data['studentId']; // Ensure you save studentId during scan
-
+        return ListView(
+          children: snapshot.data!.docs.map((doc) {
+            var data = doc.data() as Map<String, dynamic>;
             return ListTile(
               leading: const Icon(Icons.person),
-              title: Text(data['studentName'] ?? "Unknown"),
+              title: Text(data['studentName'] ?? "Student"),
               trailing: IconButton(
                 icon: const Icon(Icons.person_remove, color: Colors.red),
-                onPressed: () => _service.kickStudent(_codeController.text, studentId),
+                tooltip: "Kick Student",
+                onPressed: () => _service.kickStudent(_codeController.text, doc.id), // KICKS INSTANTLY
               ),
             );
-          },
+          }).toList(),
         );
       },
     );

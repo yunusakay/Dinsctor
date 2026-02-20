@@ -72,21 +72,19 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
     return Column(
       children: [
         if (token.isNotEmpty) ...[
-          const Text("SCAN TO MARK ATTENDANCE",
-              style: TextStyle(color: Colors.white, fontSize: 32)),
+          const Text("SCAN TO MARK ATTENDANCE", style: TextStyle(color: Colors.white, fontSize: 32)),
           const SizedBox(height: 40),
           Container(
             padding: const EdgeInsets.all(20),
             color: Colors.white,
             child: QrImageView(data: token, size: 300),
           ),
-        ] else
-          ...[
-            const Icon(Icons.lock_clock, color: Colors.red, size: 100),
-            const SizedBox(height: 20),
-            const Text("SESSION STOPPED OR EXPIRED",
-                style: TextStyle(color: Colors.white, fontSize: 24)),
-          ],
+        ] else ...[
+          // Hides QR Code instantly if empty or stopped
+          const Icon(Icons.timer_off, color: Colors.red, size: 100),
+          const SizedBox(height: 20),
+          const Text("SESSION STOPPED OR EXPIRED", style: TextStyle(color: Colors.white, fontSize: 24)),
+        ],
       ],
     );
   }
