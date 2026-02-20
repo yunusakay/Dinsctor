@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -24,10 +23,18 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSavedEmail();
+    _checkExistingSession();
   }
 
-  // 1. Load saved email from local storage
+  void _checkExistingSession() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      _navigateBasedOnRole(user.uid);
+    } else {
+      _loadSavedEmail();
+    }
+  }
+
   void _loadSavedEmail() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -36,81 +43,41 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  // 2. The missing Navigation Function
   void _navigateBasedOnRole(String uid) async {
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-
-    if (!doc.exists) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User role not found in database.")));
-      return;
-    }
-
-    final userRole = doc.get('role');
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, userRole == 'teacher' ? '/teacher' : '/student');
+    if (doc.exists && mounted) {
+      String role = doc.get('role');
+      Navigator.pushReplacementNamed(context, role == 'teacher' ? '/teacher' : '/student');
     }
   }
 
-  // 3. The missing Reset Password Function
+  // --- RESTORED: Reset Password Logic ---
   void _resetPassword() async {
     final TextEditingController _resetEmailController = TextEditingController();
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 24, right: 24, top: 24,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Secure Reset", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _resetEmailController,
-              decoration: const InputDecoration(labelText: "Account Email", border: OutlineInputBorder()),
-            ),
+            const Text("Reset Password", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            TextField(controller: _resetEmailController, decoration: const InputDecoration(labelText: "Email")),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-                String email = _resetEmailController.text.trim();
-                if (email.isEmpty) return;
-
-                // --- SECURITY TIME RESTRICTION (COOLDOWN) ---
-                int lastRequest = prefs.getInt('last_reset_request') ?? 0;
-                int currentTime = DateTime.now().millisecondsSinceEpoch;
-
-                // 60,000 milliseconds = 1 minute cooldown
-                if (currentTime - lastRequest < 60000) {
-                  int secondsLeft = (60000 - (currentTime - lastRequest)) ~/ 1000;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Please wait $secondsLeft seconds before requesting again.")),
-                  );
-                  return;
-                }
-
                 try {
-                  await _auth.sendPasswordResetEmail(email: email);
-
-                  // Update the last request time
-                  await prefs.setInt('last_reset_request', currentTime);
-
+                  await _auth.sendPasswordResetEmail(email: _resetEmailController.text.trim());
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Reset link sent!"), backgroundColor: Colors.green),
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Reset link sent!")));
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
               },
-              child: const Text("SEND RESET LINK"),
+              child: const Text("Send Link"),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -118,82 +85,56 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_isLogin) {
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      await userCredential.user?.updateDisplayName(_nameController.text.trim());
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-        'name': _nameController.text.trim(),
-        'role': _role,
-        'email': _emailController.text.trim(),
-      });
-      if (_emailController.text.isEmpty || _passwordController.text.isEmpty)
-        return;
-      setState(() => _isLoading = true);
-      try {
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        if (_rememberMe) {
-          await prefs.setString('saved_email', _emailController.text.trim());
-        } else {
-          await prefs.remove('saved_email');
-        }
-
-        if (_isLogin) {
-          final user = await _auth.signInWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
-          _navigateBasedOnRole(user.user!.uid);
-        } else {
-          final user = await _auth.createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
-          await FirebaseFirestore.instance.collection('users').doc(
-              user.user!.uid).set({
-            'role': _role,
-            'email': _emailController.text.trim(),
-          });
-          _navigateBasedOnRole(user.user!.uid);
-        }
-      } on FirebaseAuthException catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message ?? "Error")));
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
+    if (!_isLogin && _nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name is required")));
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString('saved_email', _emailController.text.trim());
+      } else {
+        await prefs.remove('saved_email');
       }
+
+      if (_isLogin) {
+        final cred = await _auth.signInWithEmailAndPassword(
+            email: _emailController.text.trim(), password: _passwordController.text.trim());
+        _navigateBasedOnRole(cred.user!.uid);
+      } else {
+        final cred = await _auth.createUserWithEmailAndPassword(
+            email: _emailController.text.trim(), password: _passwordController.text.trim());
+        await cred.user!.updateDisplayName(_nameController.text.trim());
+        await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+          'name': _nameController.text.trim(),
+          'role': _role,
+          'email': _emailController.text.trim(),
+        });
+        _navigateBasedOnRole(cred.user!.uid);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
           child: Column(
             children: [
               const Text("Dinsctor", style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Color(0xFF3182CE))),
-              const SizedBox(height: 10),
-              Text(_isLogin ? "Welcome Back" : "Create Account", style: const TextStyle(fontSize: 18, color: Colors.grey)),
               const SizedBox(height: 40),
-              TextField(controller: _emailController, decoration: const InputDecoration(hintText: "Email", border: OutlineInputBorder())),
-              const SizedBox(height: 15),
-              TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(hintText: "Password", border: OutlineInputBorder())),
-
-              Row(
-                children: [
-                  Checkbox(value: _rememberMe, onChanged: (v) => setState(() => _rememberMe = v!)),
-                  const Text("Remember Me"),
-                ],
-              ),
-
               if (!_isLogin) ...[
+                TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Full Name", border: OutlineInputBorder())),
                 const SizedBox(height: 15),
-                const Text("Sign up as:"),
+                const Text("Account Type:"),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -202,20 +143,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     Radio(value: 'teacher', groupValue: _role, onChanged: (v) => setState(() => _role = v!)),
                     const Text("Teacher"),
                   ],
-                )
+                ),
               ],
-              const SizedBox(height: 20),
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3182CE), foregroundColor: Colors.white),
-                  onPressed: _submit,
-                  child: Text(_isLogin ? "LOGIN" : "REGISTER"))
+              TextField(controller: _emailController, decoration: const InputDecoration(labelText: "Email", border: OutlineInputBorder())),
+              const SizedBox(height: 15),
+              TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder())),
+              CheckboxListTile(
+                title: const Text("Remember Me"),
+                value: _rememberMe,
+                onChanged: (v) => setState(() => _rememberMe = v!),
+                controlAffinity: ListTileControlAffinity.leading,
               ),
-
-              TextButton(onPressed: () => setState(() => _isLogin = !_isLogin),
-                  child: Text(_isLogin ? "Don't have an account? Register" : "Already have an account? Login")),
-
+              const SizedBox(height: 20),
+              _isLoading ? const CircularProgressIndicator() : SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _submit, child: Text(_isLogin ? "LOGIN" : "REGISTER"))),
+              TextButton(onPressed: () => setState(() => _isLogin = !_isLogin), child: Text(_isLogin ? "Need an account? Register" : "Have an account? Login")),
+              // --- RESTORED: Forgot Password Button ---
               if (_isLogin) TextButton(onPressed: _resetPassword, child: const Text("Forgot Password?")),
             ],
           ),

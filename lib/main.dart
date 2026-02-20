@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added: This fixes your errors
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/web_landing_screen.dart';
 import 'screens/student_screen.dart';
 import 'screens/teacher_remote_screen.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -23,13 +25,26 @@ class StudentsCheckerApp extends StatelessWidget {
       title: 'Dinsctor',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      // NO 'const' here because WebLandingScreen and LoginScreen are dynamic
-      // Temporarily change main.dart for debugging
-      home: kIsWeb ? TeacherRemoteScreen() : LoginScreen(),
+      // Logic: Web shows Projector. Mobile checks if already logged in.
+      home: kIsWeb
+          ? const WebLandingScreen()
+          : StreamBuilder<User?>( // Fixed: Now 'User' is recognized
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (snapshot.hasData) {
+            // If user exists, we need to know their role to route them
+            return const LoginScreen(); // LoginScreen handles role-redirection in its initState
+          }
+          return const LoginScreen();
+        },
+      ),
       routes: {
-        '/login': (context) => LoginScreen(),
-        '/teacher': (context) => TeacherRemoteScreen(),
-        '/student': (context) => StudentScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/teacher': (context) => const TeacherRemoteScreen(),
+        '/student': (context) => const StudentScreen(),
       },
     );
   }

@@ -1,11 +1,12 @@
+// lib/services/attendance_service.dart
 import 'dart:async';
 import 'dart:math';
+import 'package:firebase_auth/firebase_auth.dart'; //
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Add this import
 
 class AttendanceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance; // Added this declaration
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   Timer? _rotationTimer;
 
   Future<String> initWebDisplay() async {
@@ -26,7 +27,8 @@ class AttendanceService {
         await _db.collection('sessions').doc(code).update({
           'status': 'linked',
           'className': className,
-          'teacherId': _auth.currentUser?.uid, // Fixed: Uses current user ID
+          'teacherId': _auth.currentUser?.uid,
+          'teacherName': _auth.currentUser?.displayName ?? "Teacher",
         });
         return true;
       }
@@ -36,11 +38,12 @@ class AttendanceService {
     }
   }
 
-  void startBroadcasting(String displayCode) {
+  void startBroadcasting(String displayCode, {int seconds = 7}) {
     _rotationTimer?.cancel();
-    _rotationTimer = Timer.periodic(const Duration(seconds: 7), (timer) async {
+    _rotationTimer = Timer.periodic(Duration(seconds: seconds), (timer) async {
+      // Generate a new unique token
       String newToken = (100000 + Random().nextInt(900000)).toString();
-      // FIXED: Uses 'sessions' collection instead of 'active_displays'
+
       await _db.collection('sessions').doc(displayCode).update({
         'status': 'active',
         'currentToken': newToken,
@@ -51,6 +54,7 @@ class AttendanceService {
 
   void stopBroadcasting(String code) async {
     _rotationTimer?.cancel();
+    // Security: Wipe the token so old pictures cannot be used
     await _db.collection('sessions').doc(code).update({
       'status': 'stopped',
       'currentToken': '',
@@ -71,7 +75,6 @@ class AttendanceService {
       'studentName': studentName,
       'timestamp': FieldValue.serverTimestamp(),
     });
-
     return true;
   }
 }
