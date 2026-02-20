@@ -8,17 +8,17 @@ class AttendanceService {
 
   // 1. Initialize the Web Screen (The Projector)
   Future<String> initWebDisplay() async {
-    String displayCode = (1000 + Random().nextInt(9000)).toString();
+    String code = (1000 + (9999 - 1000) * (DateTime.now().millisecond / 1000)).toInt().toString();
 
-    await _db.collection('active_displays').doc(displayCode).set({
-      'displayCode': displayCode,
+    await _db.collection('sessions').doc(code).set({
+      'displayCode': code,
       'status': 'waiting',
       'sessionId': null,
       'currentToken': '',
       'lastHeartbeat': FieldValue.serverTimestamp(),
     });
 
-    return displayCode;
+    return code;
   }
 
   // 2. Listen to the Screen Data
@@ -27,25 +27,23 @@ class AttendanceService {
   }
 
   // 3. Pair Phone to Screen
-  Future<bool> linkRemoteToDisplay(String displayCode, String classId) async {
-    DocumentSnapshot doc = await _db.collection('active_displays').doc(displayCode).get();
+  Future<bool> linkRemoteToDisplay(String code, String className) async {
+    try {
+      // We check if the document actually exists before trying to update it
+      var doc = await _db.collection('sessions').doc(code).get();
 
-    if (!doc.exists) return false;
-
-    String sessionId = _db.collection('sessions').doc().id;
-    await _db.collection('sessions').doc(sessionId).set({
-      'sessionId': sessionId,
-      'classId': classId,
-      'createdAt': FieldValue.serverTimestamp(),
-      'attendees': [],
-    });
-
-    await _db.collection('active_displays').doc(displayCode).update({
-      'status': 'linked',
-      'sessionId': sessionId,
-    });
-
-    return true;
+      if (doc.exists) {
+        await _db.collection('sessions').doc(code).update({
+          'status': 'linked',
+          'className': className,
+          'teacherId': _auth.currentUser?.uid,
+        });
+        return true;
+      }
+      return false; // Document wasn't found
+    } catch (e) {
+      return false;
+    }
   }
 
   // 4. Start Broadcasting (The Rotating Token)
@@ -64,11 +62,35 @@ class AttendanceService {
   }
 
   // 5. Stop Broadcasting
-  void stopBroadcasting(String displayCode) {
-    _rotationTimer?.cancel();
-    _db.collection('active_displays').doc(displayCode).update({
-      'status': 'stopped',
-      'currentToken': '',
+  void stopBroadcasting(String code) async {
+    try {
+      await _db.collection('sessions').doc(code).update({
+        'status': 'stopped',
+        'currentToken': '', // Clear the token so scans stop working
+      });
+    } catch (e) {
+      print("Error stopping session: $e");
+    }
+  }
+  Future<bool> submitAttendance(String token, String studentName) async {
+    // 1. Search for a session that is 'active' and matches this token
+    var snapshot = await _db.collection('sessions')
+        .where('currentToken', isEqualTo: token)
+        .where('status', isEqualTo: 'active')
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return false; // The token is old or doesn't exist
+    }
+
+    // 2. Add the student to the 'attendance' list for that session
+    String sessionId = snapshot.docs.first.id;
+    await _db.collection('sessions').doc(sessionId).collection('attendance').add({
+      'studentName': studentName,
+      'timestamp': FieldValue.serverTimestamp(),
     });
+
+    return true;
   }
 }

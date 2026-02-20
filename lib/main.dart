@@ -1,38 +1,36 @@
-import 'package:flutter/foundation.dart'; // REQUIRED for kIsWeb
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Make sure you ran 'flutterfire configure'
-
-// Screens
-import 'screens/web_landing_screen.dart';
+import 'package:flutter/foundation.dart';
+import 'firebase_options.dart';
 import 'screens/login_screen.dart';
+import 'screens/web_landing_screen.dart';
+import 'screens/student_screen.dart';
+import 'screens/teacher_remote_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  runApp(const MyApp());
+  runApp(const StudentsCheckerApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class StudentsCheckerApp extends StatelessWidget {
+  const StudentsCheckerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SsCer Attendance',
+      title: 'Dinsctor',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-      ),
-      // THE MAGIC SWITCH
-      // If running on Chrome -> Show Projector Screen
-      // If running on Phone  -> Show Login Screen
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      // NO 'const' here because WebLandingScreen and LoginScreen are dynamic
       home: kIsWeb ? WebLandingScreen() : LoginScreen(),
+      routes: {
+        '/login': (context) => LoginScreen(),
+        '/teacher': (context) => TeacherRemoteScreen(),
+        '/student': (context) => StudentScreen(),
+      },
     );
   }
 }
