@@ -30,28 +30,47 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
     if (_displayCode == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1A202C), // Dark Professional background
-      body: StreamBuilder<DocumentSnapshot>(// Inside your StreamBuilder builder function:
-      var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-      String status = data['status'] ?? 'waiting';
+      backgroundColor: const Color(0xFF1A202C),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('sessions').doc(_displayCode).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
-    return Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (status == 'waiting') ...[
-          // Only show the code, NO buttons
-          const Text("Projector Ready", style: TextStyle(color: Colors.white70, fontSize: 24)),
-          const SizedBox(height: 20),
-          Text(_displayCode!, style: const TextStyle(color: Colors.white, fontSize: 120, fontWeight: FontWeight.bold)),
-        ] else if (status == 'linked' || status == 'active') ...[
-          // As soon as the teacher connects, the code vanishes!
-          _buildActiveSessionUI(data),
-        ],
-      ],
-    ),
-    );
+          var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+          String status = data['status'] ?? 'waiting';
+
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (status == 'waiting') ...[
+                  const Text("Projector Ready", style: TextStyle(color: Colors.white70, fontSize: 24)),
+                  const SizedBox(height: 20),
+                  Text(_displayCode!, style: const TextStyle(color: Colors.white, fontSize: 120, fontWeight: FontWeight.bold)),
+                ] else ...[
+                  _buildActiveSessionUI(data), // Fixed: Called helper UI
+                ],
+              ],
+            ),
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildActiveSessionUI(Map<String, dynamic> data) {
+    String token = data['currentToken'] ?? '';
+    return Column(
+      children: [
+        const Text("SCAN TO MARK ATTENDANCE", style: TextStyle(color: Colors.white, fontSize: 32)),
+        const SizedBox(height: 40),
+        if (token.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            color: Colors.white,
+            child: QrImageView(data: token, size: 300),
+          ),
+      ],
     );
   }
 }

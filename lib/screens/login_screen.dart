@@ -14,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = FirebaseAuth.instance;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
 
   bool _isLogin = true;
   bool _isLoading = false;
@@ -117,38 +118,52 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
-    setState(() => _isLoading = true);
+    if (!_isLogin) {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      await userCredential.user?.updateDisplayName(_nameController.text.trim());
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        'name': _nameController.text.trim(),
+        'role': _role,
+        'email': _emailController.text.trim(),
+      });
+      if (_emailController.text.isEmpty || _passwordController.text.isEmpty)
+        return;
+      setState(() => _isLoading = true);
+      try {
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        if (_rememberMe) {
+          await prefs.setString('saved_email', _emailController.text.trim());
+        } else {
+          await prefs.remove('saved_email');
+        }
 
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      if (_rememberMe) {
-        await prefs.setString('saved_email', _emailController.text.trim());
-      } else {
-        await prefs.remove('saved_email');
+        if (_isLogin) {
+          final user = await _auth.signInWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
+          _navigateBasedOnRole(user.user!.uid);
+        } else {
+          final user = await _auth.createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
+          await FirebaseFirestore.instance.collection('users').doc(
+              user.user!.uid).set({
+            'role': _role,
+            'email': _emailController.text.trim(),
+          });
+          _navigateBasedOnRole(user.user!.uid);
+        }
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message ?? "Error")));
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
-
-      if (_isLogin) {
-        final user = await _auth.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-        _navigateBasedOnRole(user.user!.uid);
-      } else {
-        final user = await _auth.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-        await FirebaseFirestore.instance.collection('users').doc(user.user!.uid).set({
-          'role': _role,
-          'email': _emailController.text.trim(),
-        });
-        _navigateBasedOnRole(user.user!.uid);
-      }
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? "Error")));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
