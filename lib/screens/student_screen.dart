@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Fixed: Required for SystemChannels
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Required for Classroom List
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/attendance_service.dart';
 
@@ -15,7 +15,7 @@ class StudentScreen extends StatefulWidget {
 class _StudentScreenState extends State<StudentScreen> {
   final AttendanceService _service = AttendanceService();
   bool _isProcessing = false;
-  String? _activeSessionId; // Tracks the session the student joined
+  String? _activeSessionId;
 
   void _handleExit() async {
     await FirebaseAuth.instance.signOut();
@@ -33,14 +33,12 @@ class _StudentScreenState extends State<StudentScreen> {
       if (scannedToken != null) {
         setState(() => _isProcessing = true);
 
-        // Uses the real name saved during registration
         String studentName = FirebaseAuth.instance.currentUser?.displayName ?? "Student";
 
         bool success = await _service.submitAttendance(scannedToken, studentName);
 
         if (mounted) {
           if (success) {
-            // Find the session ID from the token to show the list
             final snapshot = await FirebaseFirestore.instance
                 .collection('sessions')
                 .where('currentToken', isEqualTo: scannedToken)
@@ -98,11 +96,10 @@ class _StudentScreenState extends State<StudentScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.power_settings_new, color: Colors.red),
-            onPressed: () => SystemChannels.platform.invokeMethod('SystemNavigator.pop'), // Fixed
+            onPressed: () => SystemChannels.platform.invokeMethod('SystemNavigator.pop'),
           ),
         ],
       ),
-      // Toggle between Scanner and Classroom List
       body: _activeSessionId == null
           ? Stack(
         children: [
@@ -117,44 +114,88 @@ class _StudentScreenState extends State<StudentScreen> {
               ),
             ),
           ),
+          const Positioned(
+            bottom: 50,
+            left: 0,
+            right: 0,
+            child: Text(
+              "Scan QR code to join class",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          )
         ],
       )
-          : _buildClassroomList(),
+          : _buildClassroomView(),
     );
   }
 
-  Widget _buildClassroomList() {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text("Classroom Attendees", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('sessions')
-                .doc(_activeSessionId)
-                .collection('attendance')
-                .orderBy('timestamp', descending: true)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              return ListView.builder(
-                itemCount: snapshot.data!.docs.length,
-                itemBuilder: (context, index) {
-                  var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-                  return ListTile(
-                    leading: const Icon(Icons.person),
-                    title: Text(data['studentName'] ?? "Anonymous"),
-                    trailing: const Text("Checked In", style: TextStyle(color: Colors.green, fontSize: 12)),
+  Widget _buildClassroomView() {
+    return StreamBuilder<DocumentSnapshot>(
+      // Get Teacher's Name from the Session Document
+      stream: FirebaseFirestore.instance.collection('sessions').doc(_activeSessionId).snapshots(),
+      builder: (context, sessionSnapshot) {
+        if (!sessionSnapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+        var sessionData = sessionSnapshot.data!.data() as Map<String, dynamic>?;
+        String teacherName = sessionData?['teacherName'] ?? "Teacher";
+
+        return Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              color: Colors.blueGrey.shade50,
+              child: Column(
+                children: [
+                  Text("Instructor: $teacherName",
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await _service.leaveClassroom(_activeSessionId!);
+                      setState(() => _activeSessionId = null);
+                    },
+                    icon: const Icon(Icons.exit_to_app, color: Colors.orange),
+                    label: const Text("Leave Classroom", style: TextStyle(color: Colors.orange)),
+                  ),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Text("Classmates Present", style: TextStyle(fontSize: 16, color: Colors.grey)),
+            ),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                // Get Attendee List
+                stream: FirebaseFirestore.instance
+                    .collection('sessions')
+                    .doc(_activeSessionId)
+                    .collection('attendance')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                  final students = snapshot.data!.docs;
+
+                  return ListView.builder(
+                    itemCount: students.length,
+                    itemBuilder: (context, index) {
+                      var data = students[index].data() as Map<String, dynamic>;
+                      return ListTile(
+                        leading: const Icon(Icons.person),
+                        title: Text(data['studentName'] ?? "Anonymous"),
+                        trailing: const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      );
+                    },
                   );
                 },
-              );
-            },
-          ),
-        ),
-      ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

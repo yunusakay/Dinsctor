@@ -34,19 +34,6 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
         title: const Text("Teacher Remote"),
         automaticallyImplyLeading: false,
         actions: [
-          // NEW: Language Selection Button (Left of user icon)
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.language),
-            onSelected: (lang) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(lang == 'en' ? "Language: English" : "Dil: Türkçe")),
-              );
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'en', child: Text("English")),
-              const PopupMenuItem(value: 'tr', child: Text("Türkçe")),
-            ],
-          ),
           // Account Popup
           PopupMenuButton<String>(
             icon: const Icon(Icons.account_circle),
@@ -146,6 +133,40 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
           ),
         ),
       ],
+    );
+  }
+  // lib/screens/teacher_remote_screen.dart
+
+  Widget _buildAttendeeList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('sessions')
+          .doc(_codeController.text)
+          .collection('attendance')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+        final docs = snapshot.data!.docs;
+
+        return ListView.builder(
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            final studentId = data['studentId']; // Ensure you save studentId during scan
+
+            return ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(data['studentName'] ?? "Unknown"),
+              trailing: IconButton(
+                icon: const Icon(Icons.person_remove, color: Colors.red),
+                onPressed: () => _service.kickStudent(_codeController.text, studentId),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

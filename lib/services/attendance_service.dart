@@ -26,9 +26,7 @@ class AttendanceService {
       if (doc.exists) {
         await _db.collection('sessions').doc(code).update({
           'status': 'linked',
-          'className': className,
-          'teacherId': _auth.currentUser?.uid,
-          'teacherName': _auth.currentUser?.displayName ?? "Teacher",
+          'teacherName': _auth.currentUser?.displayName ?? "Teacher", // Save the name
         });
         return true;
       }
@@ -77,4 +75,43 @@ class AttendanceService {
     });
     return true;
   }
+  // lib/services/attendance_service.dart
+
+// Method for the teacher to remove a student from the session
+  Future<void> kickStudent(String sessionId, String studentId) async {
+    try {
+      // Locate the specific attendance document for this student
+      var snapshot = await _db
+          .collection('sessions')
+          .doc(sessionId)
+          .collection('attendance')
+          .where('studentId', isEqualTo: studentId)
+          .get();
+
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete(); // Remove the record
+      }
+    } catch (e) {
+      print("Error kicking student: $e");
+    }
+  }
+
+// Allows a student to remove themselves (Leave)
+  Future<void> leaveClassroom(String sessionId) async {
+    String? uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    var snapshot = await _db
+        .collection('sessions')
+        .doc(sessionId)
+        .collection('attendance')
+        .where('studentId', isEqualTo: uid)
+        .get();
+
+    for (var doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+  }
+
+
 }
