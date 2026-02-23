@@ -1,3 +1,4 @@
+// lib/services/attendance_service.dart
 import 'dart:async';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +9,7 @@ class AttendanceService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   Timer? _rotationTimer;
 
+  // ... (Keep initWebDisplay & linkRemoteToDisplay the same) ...
   Future<String> initWebDisplay() async {
     String code = (1000 + (9999 - 1000) * (DateTime.now().millisecond / 1000)).toInt().toString();
     await _db.collection('sessions').doc(code).set({
@@ -37,23 +39,53 @@ class AttendanceService {
     }
   }
 
-  void startBroadcasting(String displayCode, {int seconds = 7}) {
+  void startBroadcasting(String displayCode, {int seconds = 7, bool autoStop = false, Function? onAutoStop}) {
     _rotationTimer?.cancel();
-    _rotationTimer = Timer.periodic(Duration(seconds: seconds), (timer) async {
+
+    if (autoStop) {
       String newToken = (100000 + Random().nextInt(900000)).toString();
-      await _db.collection('sessions').doc(displayCode).update({
+      _db.collection('sessions').doc(displayCode).update({
         'status': 'active',
         'currentToken': newToken,
         'lastHeartbeat': FieldValue.serverTimestamp(),
       });
-    });
+
+      _rotationTimer = Timer(Duration(seconds: seconds), () {
+        stopBroadcasting(displayCode);
+        if (onAutoStop != null) onAutoStop();
+      });
+
+    } else {
+      void rotateToken() async {
+        String newToken = (100000 + Random().nextInt(900000)).toString();
+        await _db.collection('sessions').doc(displayCode).update({
+          'status': 'active',
+          'currentToken': newToken,
+          'lastHeartbeat': FieldValue.serverTimestamp(),
+        });
+      }
+
+      rotateToken();
+      _rotationTimer = Timer.periodic(Duration(seconds: seconds), (timer) {
+        rotateToken();
+      });
+    }
   }
 
   void stopBroadcasting(String code) async {
     _rotationTimer?.cancel();
     await _db.collection('sessions').doc(code).update({
       'status': 'stopped',
-      'currentToken': '', // Wipes the QR code
+      'currentToken': '',
+    });
+  }
+
+  // --- NEW: Permanently finish and close the classroom ---
+  Future<void> finishSession(String code) async {
+    _rotationTimer?.cancel();
+    await _db.collection('sessions').doc(code).update({
+      'status': 'finished',
+      'currentToken': '',
     });
   }
 
@@ -69,25 +101,24 @@ class AttendanceService {
     String sessionId = snapshot.docs.first.id;
     await _db.collection('sessions').doc(sessionId).collection('attendance').add({
       'studentName': studentName,
-      'studentId': _auth.currentUser?.uid, // FIXED: Saves ID so they can leave later!
+      'studentEmail': _auth.currentUser?.email,
+      'studentId': _auth.currentUser?.uid,
       'timestamp': FieldValue.serverTimestamp(),
     });
     return true;
   }
 
-  // NEW: Teacher kicks student using Document ID
   Future<void> kickStudent(String sessionId, String attendanceDocId) async {
     await _db.collection('sessions').doc(sessionId).collection('attendance').doc(attendanceDocId).delete();
   }
 
-  // NEW: Student leaves by searching for their ID
   Future<void> leaveClassroom(String sessionId) async {
     String? uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
     var snapshot = await _db.collection('sessions').doc(sessionId).collection('attendance').where('studentId', isEqualTo: uid).get();
     for (var doc in snapshot.docs) {
-      await doc.reference.delete(); // Removes them from list
+      await doc.reference.delete();
     }
   }
 }

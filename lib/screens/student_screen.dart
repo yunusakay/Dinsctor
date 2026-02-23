@@ -132,7 +132,6 @@ class _StudentScreenState extends State<StudentScreen> {
 
   Widget _buildClassroomView() {
     return StreamBuilder<DocumentSnapshot>(
-      // Get Teacher's Name from the Session Document
       stream: FirebaseFirestore.instance.collection('sessions').doc(_activeSessionId).snapshots(),
       builder: (context, sessionSnapshot) {
         if (!sessionSnapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -153,9 +152,8 @@ class _StudentScreenState extends State<StudentScreen> {
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: () async {
-                      // Actually removes them from the database list
                       await _service.leaveClassroom(_activeSessionId!);
-                      setState(() => _activeSessionId = null); // Returns to scanner
+                      setState(() => _activeSessionId = null);
                     },
                     icon: const Icon(Icons.exit_to_app, color: Colors.orange),
                     label: const Text("Leave Classroom", style: TextStyle(color: Colors.orange)),
@@ -169,7 +167,6 @@ class _StudentScreenState extends State<StudentScreen> {
             ),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                // Get Attendee List
                 stream: FirebaseFirestore.instance
                     .collection('sessions')
                     .doc(_activeSessionId)
@@ -179,6 +176,28 @@ class _StudentScreenState extends State<StudentScreen> {
                   if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
                   final students = snapshot.data!.docs;
+                  final myUid = FirebaseAuth.instance.currentUser?.uid;
+
+                  // --- NEW: Auto-Kick Detection ---
+                  // Checks if the current user is still inside the database list
+                  bool amIStillInClass = students.any((doc) {
+                    var data = doc.data() as Map<String, dynamic>;
+                    return data['studentId'] == myUid;
+                  });
+
+                  if (!amIStillInClass && snapshot.connectionState == ConnectionState.active) {
+                    // If teacher kicked you, delay by 1 frame to avoid build errors, then exit
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() => _activeSessionId = null);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("You were removed by the teacher.")),
+                        );
+                      }
+                    });
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  // ---------------------------------
 
                   return ListView.builder(
                     itemCount: students.length,

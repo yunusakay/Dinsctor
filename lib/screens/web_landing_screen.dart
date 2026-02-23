@@ -68,10 +68,19 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
 
   Widget _buildActiveSessionUI(Map<String, dynamic> data) {
     String token = data['currentToken'] ?? '';
+    String teacher = data['teacherName'] ?? 'Teacher';
+    String className = data['className'] ?? 'Classroom';
+    String displayCode = data['displayCode'] ?? '----'; // Fetches the projector code
 
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (token.isNotEmpty) ...[
+          // --- Active State: Shows QR Code, Class, and Teacher ---
+          Text(className, style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
+          Text("Instructor: $teacher", style: const TextStyle(color: Colors.white70, fontSize: 28)),
+          const SizedBox(height: 30),
+
           const Text("SCAN TO MARK ATTENDANCE", style: TextStyle(color: Colors.white, fontSize: 32)),
           const SizedBox(height: 40),
           Container(
@@ -80,12 +89,20 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
             child: QrImageView(data: token, size: 300),
           ),
         ] else ...[
-          // Hides QR Code instantly if empty or stopped
-          const Icon(Icons.timer_off, color: Colors.red, size: 100),
-          const SizedBox(height: 20),
-          const Text("SESSION STOPPED OR EXPIRED", style: TextStyle(color: Colors.white, fontSize: 24)),
-        ],
-      ],
+    // --- Paused/Stopped State: Shows the Room Code ---
+    const Icon(Icons.meeting_room, color: Colors.blueAccent, size: 80),
+    const SizedBox(height: 20),
+    // FIXED: Changed from ROOM CODE to PROJECTOR CODE
+    const Text("PROJECTOR CODE", style: TextStyle(color: Colors.white70, fontSize: 28, letterSpacing: 5)),
+    const SizedBox(height: 10),
+    Text(
+    displayCode,
+    style: const TextStyle(color: Colors.white, fontSize: 120, fontWeight: FontWeight.bold, letterSpacing: 25)
+    ),
+    const SizedBox(height: 20),
+    const Text("Waiting for teacher to start attendance...", style: TextStyle(color: Colors.white54, fontSize: 24)),
+    ],
+    ]
     );
   }
 }
