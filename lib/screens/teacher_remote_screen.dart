@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/attendance_service.dart';
+import '../services/export_service.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -138,6 +139,53 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
       }
 
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Saved directly to: $savedPath"),
+              duration: const Duration(seconds: 5),
+              backgroundColor: Colors.green,
+            )
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error saving file: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportWord(List<QueryDocumentSnapshot> docs) async {
+    List<Map<String, String>> students = [];
+    for (var doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      students.add({
+        'name': data['studentName'] ?? "Unknown",
+        'email': data['studentEmail'] ?? "No Email",
+        'status': "Present",
+        'time': (data['timestamp'] as Timestamp?)?.toDate().toString() ?? "Unknown Time",
+      });
+    }
+
+    String htmlContent = ExportService.generateWordHtml(students, _classNameController.text);
+    Uint8List bytes = Uint8List.fromList(utf8.encode(htmlContent));
+
+    try {
+      String savedPath = "";
+      String rawTeacherName = FirebaseAuth.instance.currentUser?.displayName ?? "Teacher";
+      String safeTeacherName = rawTeacherName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      String safeClassName = _classNameController.text.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      String baseFileName = '${safeTeacherName}__$safeClassName';
+
+      savedPath = await FileSaver.instance.saveFile(
+        name: baseFileName,
+        bytes: bytes,
+        fileExtension: 'doc',
+        mimeType: MimeType.microsoftWord,
+      );
+
+       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text("Saved directly to: $savedPath"),
@@ -372,6 +420,12 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                         icon: const Icon(Icons.table_chart, color: Colors.white),
                         label: const Text("Excel", style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: docs.isEmpty ? null : () => _exportWord(docs),
+                        icon: const Icon(Icons.description, color: Colors.white),
+                        label: const Text("Word", style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
                       ),
                     ],
                   ),
