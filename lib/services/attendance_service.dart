@@ -1,4 +1,3 @@
-// lib/services/attendance_service.dart
 import 'dart:async';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,9 +8,9 @@ class AttendanceService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   Timer? _rotationTimer;
 
-  // ... (Keep initWebDisplay & linkRemoteToDisplay the same) ...
   Future<String> initWebDisplay() async {
-    String code = (1000 + (9999 - 1000) * (DateTime.now().millisecond / 1000)).toInt().toString();
+    // Generates a true random 4-digit code
+    String code = (Random().nextInt(9000) + 1000).toString();
     await _db.collection('sessions').doc(code).set({
       'displayCode': code,
       'status': 'waiting',
@@ -47,6 +46,7 @@ class AttendanceService {
       _db.collection('sessions').doc(displayCode).update({
         'status': 'active',
         'currentToken': newToken,
+        'previousToken': '',
         'lastHeartbeat': FieldValue.serverTimestamp(),
       });
 
@@ -54,13 +54,16 @@ class AttendanceService {
         stopBroadcasting(displayCode);
         if (onAutoStop != null) onAutoStop();
       });
-
     } else {
       void rotateToken() async {
         String newToken = (100000 + Random().nextInt(900000)).toString();
+        var doc = await _db.collection('sessions').doc(displayCode).get();
+        String prevToken = doc.exists ? (doc.data()?['currentToken'] ?? '') : '';
+
         await _db.collection('sessions').doc(displayCode).update({
           'status': 'active',
           'currentToken': newToken,
+          'previousToken': prevToken,
           'lastHeartbeat': FieldValue.serverTimestamp(),
         });
       }
@@ -80,7 +83,6 @@ class AttendanceService {
     });
   }
 
-  // --- NEW: Permanently finish and close the classroom ---
   Future<void> finishSession(String code) async {
     _rotationTimer?.cancel();
     await _db.collection('sessions').doc(code).update({
@@ -90,24 +92,38 @@ class AttendanceService {
   }
 
   Future<bool> submitAttendance(String token, String studentName) async {
-    var snapshot = await _db.collection('sessions')
+    String? uid = _auth.currentUser?.uid;
+    if (uid == null) return false;
+
+    var currentSnap = await _db.collection('sessions')
         .where('currentToken', isEqualTo: token)
         .where('status', isEqualTo: 'active')
-        .limit(1)
-        .get();
+        .limit(1).get();
 
-    if (snapshot.docs.isEmpty) return false;
+    var previousSnap = await _db.collection('sessions')
+        .where('previousToken', isEqualTo: token)
+        .where('status', isEqualTo: 'active')
+        .limit(1).get();
 
-    String sessionId = snapshot.docs.first.id;
+    if (currentSnap.docs.isEmpty && previousSnap.docs.isEmpty) return false;
+
+    String sessionId = currentSnap.docs.isNotEmpty ? currentSnap.docs.first.id : previousSnap.docs.first.id;
+
+    var duplicateCheck = await _db.collection('sessions').doc(sessionId).collection('attendance')
+        .where('studentId', isEqualTo: uid).get();
+
+    if (duplicateCheck.docs.isNotEmpty) return true;
+
     await _db.collection('sessions').doc(sessionId).collection('attendance').add({
       'studentName': studentName,
       'studentEmail': _auth.currentUser?.email,
-      'studentId': _auth.currentUser?.uid,
+      'studentId': uid,
       'timestamp': FieldValue.serverTimestamp(),
     });
     return true;
   }
 
+  // --- MISSING METHODS RESTORED ---
   Future<void> kickStudent(String sessionId, String attendanceDocId) async {
     await _db.collection('sessions').doc(sessionId).collection('attendance').doc(attendanceDocId).delete();
   }

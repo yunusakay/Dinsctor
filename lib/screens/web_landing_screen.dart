@@ -27,17 +27,18 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_displayCode == null)
+    if (_displayCode == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A202C),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('sessions').doc(
-            _displayCode).snapshots(),
+        stream: FirebaseFirestore.instance.collection('sessions').doc(_displayCode).snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
           String status = data['status'] ?? 'waiting';
@@ -54,10 +55,9 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
                       color: Colors.white,
                       fontSize: 120,
                       fontWeight: FontWeight.bold)),
-                ] else
-                  ...[
-                    _buildActiveSessionUI(data), // Fixed: Called helper UI
-                  ],
+                ] else ...[
+                  _buildActiveSessionUI(data),
+                ],
               ],
             ),
           );

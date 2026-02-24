@@ -11,7 +11,8 @@ import 'package:file_saver/file_saver.dart'; // NEW: For Native Local Saving
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io'; // Needed for File and Directory access
-import 'package:flutter/foundation.dart' show kIsWeb; // Needed to prevent crashes on Web
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data'; // DELETE THIS LINE// Needed to prevent crashes on Web
 
 class TeacherRemoteScreen extends StatefulWidget {
   const TeacherRemoteScreen({super.key});
@@ -116,8 +117,11 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
         Directory dir = Directory('/storage/emulated/0/Download');
         if (!await dir.exists()) dir = Directory('/storage/emulated/0/Downloads');
 
-        // Adds a timestamp to prevent overwriting previous files of the exact same name
-        String fileName = '${baseFileName}_${DateTime.now().millisecondsSinceEpoch}.csv';
+        // --- MISSING FIX: Clean human-readable date ---
+        DateTime now = DateTime.now();
+        String cleanDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}";
+
+        String fileName = '${baseFileName}_$cleanDate.csv';
         File file = File('${dir.path}/$fileName');
 
         await file.writeAsBytes(bytes);

@@ -52,8 +52,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // --- RESTORED: Reset Password Logic ---
+  // --- FIXED: Renamed local variable, fixed async gaps ---
   void _resetPassword() async {
-    final TextEditingController _resetEmailController = TextEditingController();
+    final TextEditingController resetEmailController = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -63,15 +64,17 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text("Reset Password", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            TextField(controller: _resetEmailController, decoration: const InputDecoration(labelText: "Email")),
+            TextField(controller: resetEmailController, decoration: const InputDecoration(labelText: "Email")),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
                 try {
-                  await _auth.sendPasswordResetEmail(email: _resetEmailController.text.trim());
+                  await _auth.sendPasswordResetEmail(email: resetEmailController.text.trim());
+                  if (!context.mounted) return; // FIXED ASYNC GAP
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Reset link sent!")));
                 } catch (e) {
+                  if (!context.mounted) return; // FIXED ASYNC GAP
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
               },
@@ -84,13 +87,16 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // --- FIXED: Async Gaps in Submit ---
   Future<void> _submit() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
     if (!_isLogin && _nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name is required")));
       return;
     }
+
     setState(() => _isLoading = true);
+
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
@@ -106,6 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         final cred = await _auth.createUserWithEmailAndPassword(
             email: _emailController.text.trim(), password: _passwordController.text.trim());
+
         await cred.user!.updateDisplayName(_nameController.text.trim());
         await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
           'name': _nameController.text.trim(),
@@ -115,6 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _navigateBasedOnRole(cred.user!.uid);
       }
     } catch (e) {
+      if (!mounted) return; // FIXED ASYNC GAP
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -123,6 +131,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_auth.currentUser != null) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
