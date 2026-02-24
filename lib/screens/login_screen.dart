@@ -63,13 +63,13 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Reset Password", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text("Şifreyi Sıfırla", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text("Enter your email and we will send you a reset link.", style: TextStyle(color: Colors.grey)),
+            const Text("E-postanızı girin, size bir sıfırlama bağlantısı gönderelim.", style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 24),
             TextField(
               controller: resetEmailController,
-              decoration: const InputDecoration(labelText: "Email Address", prefixIcon: Icon(Icons.email_outlined)),
+              decoration: const InputDecoration(labelText: "E-posta Adresi", prefixIcon: Icon(Icons.email_outlined)),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -78,14 +78,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   await _auth.sendPasswordResetEmail(email: resetEmailController.text.trim());
                   if (!context.mounted) return;
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Reset link sent!"), backgroundColor: Colors.green));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sıfırlama bağlantısı gönderildi!"), backgroundColor: Colors.green));
                 } catch (e) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white),
-              child: const Text("Send Reset Link"),
+              child: const Text("Bağlantıyı Gönder"),
             ),
             const SizedBox(height: 32),
           ],
@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
     if (!_isLogin && _nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name is required")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("İsim gereklidir")));
       return;
     }
 
@@ -147,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)], // Indigo to Cyan gradient
+            colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
           ),
         ),
         child: SafeArea(
@@ -157,44 +157,37 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // App Logo / Icon
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
                     child: const Icon(Icons.qr_code_scanner_rounded, size: 80, color: Colors.white),
                   ),
                   const SizedBox(height: 24),
                   const Text("Dinsctor", style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 2)),
-                  const Text("Smart Classroom Attendance", style: TextStyle(fontSize: 16, color: Colors.white70)),
+                  const Text("Akıllı Sınıf Yoklama Sistemi", style: TextStyle(fontSize: 16, color: Colors.white70)),
                   const SizedBox(height: 40),
 
-                  // Floating Glass Card
                   Container(
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 30, offset: const Offset(0, 10)),
-                      ],
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 30, offset: const Offset(0, 10))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(_isLogin ? "Welcome Back" : "Create Account",
+                        Text(_isLogin ? "Tekrar Hoş Geldiniz" : "Hesap Oluştur",
                             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
                         const SizedBox(height: 24),
 
                         if (!_isLogin) ...[
                           TextField(
                             controller: _nameController,
-                            decoration: const InputDecoration(labelText: "Full Name", prefixIcon: Icon(Icons.person_outline)),
+                            decoration: const InputDecoration(labelText: "Ad Soyad", prefixIcon: Icon(Icons.person_outline)),
                           ),
                           const SizedBox(height: 16),
-                          const Text("Account Type:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                          const Text("Hesap Türü:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -208,9 +201,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       border: Border.all(color: _role == 'student' ? const Color(0xFF4F46E5) : Colors.grey.shade300, width: 2),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Center(child: Text("Student", style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: _role == 'student' ? const Color(0xFF4F46E5) : Colors.grey
+                                    child: Center(child: Text("Öğrenci", style: TextStyle(
+                                        fontWeight: FontWeight.bold, color: _role == 'student' ? const Color(0xFF4F46E5) : Colors.grey
                                     ))),
                                   ),
                                 ),
@@ -226,9 +218,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       border: Border.all(color: _role == 'teacher' ? const Color(0xFF4F46E5) : Colors.grey.shade300, width: 2),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Center(child: Text("Teacher", style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: _role == 'teacher' ? const Color(0xFF4F46E5) : Colors.grey
+                                    child: Center(child: Text("Öğretmen", style: TextStyle(
+                                        fontWeight: FontWeight.bold, color: _role == 'teacher' ? const Color(0xFF4F46E5) : Colors.grey
                                     ))),
                                   ),
                                 ),
@@ -241,14 +232,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.email_outlined)),
+                          decoration: const InputDecoration(labelText: "E-posta", prefixIcon: Icon(Icons.email_outlined)),
                         ),
                         const SizedBox(height: 16),
 
                         TextField(
                           controller: _passwordController,
                           obscureText: true,
-                          decoration: const InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock_outline)),
+                          decoration: const InputDecoration(labelText: "Şifre", prefixIcon: Icon(Icons.lock_outline)),
                         ),
                         const SizedBox(height: 16),
 
@@ -262,13 +253,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   activeColor: const Color(0xFF4F46E5),
                                   onChanged: (v) => setState(() => _rememberMe = v ?? false),
                                 ),
-                                const Text("Remember me", style: TextStyle(color: Colors.grey)),
+                                const Text("Beni Hatırla", style: TextStyle(color: Colors.grey)),
                               ],
                             ),
                             if (_isLogin)
                               TextButton(
                                 onPressed: _resetPassword,
-                                child: const Text("Forgot Password?", style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold)),
+                                child: const Text("Şifremi Unuttum?", style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold)),
                               ),
                           ],
                         ),
@@ -284,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             shadowColor: const Color(0xFF4F46E5).withOpacity(0.5),
                             elevation: 8,
                           ),
-                          child: Text(_isLogin ? "LOG IN" : "SIGN UP"),
+                          child: Text(_isLogin ? "GİRİŞ YAP" : "KAYIT OL"),
                         ),
                       ],
                     ),
@@ -294,7 +285,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextButton(
                     onPressed: () => setState(() => _isLogin = !_isLogin),
                     child: Text(
-                      _isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in",
+                      _isLogin ? "Hesabınız yok mu? Kayıt Ol" : "Zaten hesabınız var mı? Giriş Yap",
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ),

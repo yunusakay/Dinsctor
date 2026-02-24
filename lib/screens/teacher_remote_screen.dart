@@ -42,10 +42,10 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
       if (mounted) {
         setState(() { _isLinked = success; _isLoading = false; });
         if (success) FocusScope.of(context).unfocus();
-        else ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invalid code!"), backgroundColor: Colors.redAccent));
+        else ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Geçersiz kod!"), backgroundColor: Colors.redAccent));
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter a Class Name and 4-Digit Code.")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lütfen bir Sınıf Adı ve 4 Haneli Kod girin.")));
     }
   }
 
@@ -57,15 +57,15 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text("Attendance: ${_classNameController.text}", style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+              pw.Text("Yoklama: ${_classNameController.text}", style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 10),
-              pw.Text("Date: ${DateTime.now().toString().split(' ')[0]}", style: pw.TextStyle(fontSize: 14)),
+              pw.Text("Tarih: ${DateTime.now().toString().split(' ')[0]}", style: pw.TextStyle(fontSize: 14)),
               pw.SizedBox(height: 20),
               ...docs.map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
                 return pw.Padding(
                   padding: const pw.EdgeInsets.symmetric(vertical: 4),
-                  child: pw.Text("- ${data['studentName']} (${data['studentEmail'] ?? 'No email'})", style: pw.TextStyle(fontSize: 16)),
+                  child: pw.Text("- ${data['studentName']} (${data['studentEmail'] ?? 'E-posta Yok'})", style: pw.TextStyle(fontSize: 16)),
                 );
               }),
             ],
@@ -77,14 +77,14 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
   }
 
   Future<void> _exportExcel(List<QueryDocumentSnapshot> docs) async {
-    List<List<dynamic>> rows = [["Student Name", "Email", "Status", "Time"]];
+    List<List<dynamic>> rows = [["Öğrenci Adı", "E-posta", "Durum", "Saat"]];
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
       rows.add([
-        data['studentName'] ?? "Unknown",
-        data['studentEmail'] ?? "No Email",
-        "Present",
-        (data['timestamp'] as Timestamp?)?.toDate().toString() ?? "Unknown Time",
+        data['studentName'] ?? "Bilinmeyen",
+        data['studentEmail'] ?? "E-posta Yok",
+        "Mevcut",
+        (data['timestamp'] as Timestamp?)?.toDate().toString() ?? "Bilinmeyen Saat",
       ]);
     }
     String csvStr = const ListToCsvConverter().convert(rows);
@@ -92,7 +92,7 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
 
     try {
       String savedPath = "";
-      String safeTeacherName = (FirebaseAuth.instance.currentUser?.displayName ?? "Teacher").replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      String safeTeacherName = (FirebaseAuth.instance.currentUser?.displayName ?? "Öğretmen").replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       String safeClassName = _classNameController.text.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       String baseFileName = '${safeTeacherName}__$safeClassName';
 
@@ -107,9 +107,9 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
       } else {
         savedPath = await FileSaver.instance.saveFile(name: baseFileName, bytes: bytes, fileExtension: 'csv', mimeType: MimeType.csv);
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Saved to: $savedPath"), backgroundColor: Colors.green));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Kaydedildi: $savedPath"), backgroundColor: Colors.green));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Hata: $e"), backgroundColor: Colors.red));
     }
   }
 
@@ -118,7 +118,7 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text("Teacher Control", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Öğretmen Paneli", style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF4F46E5),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -138,7 +138,6 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Create Session Card
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -149,13 +148,13 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Create a Classroom", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+                const Text("Sınıf Oluştur", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
                 const SizedBox(height: 8),
-                const Text("Link your app to the Web Projector", style: TextStyle(color: Colors.grey)),
+                const Text("Uygulamanızı Web Projektörüne bağlayın", style: TextStyle(color: Colors.grey)),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _classNameController,
-                  decoration: const InputDecoration(labelText: "Class Name (e.g., Math 101)", prefixIcon: Icon(Icons.school_outlined)),
+                  decoration: const InputDecoration(labelText: "Sınıf Adı (örn. Mat 101)", prefixIcon: Icon(Icons.school_outlined)),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -164,20 +163,20 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                   textAlign: TextAlign.center,
                   keyboardType: TextInputType.number,
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 8),
-                  decoration: const InputDecoration(labelText: "4-Digit Projector Code", prefixIcon: Icon(Icons.cast_connected)),
+                  decoration: const InputDecoration(labelText: "4 Haneli Projektör Kodu", prefixIcon: Icon(Icons.cast_connected)),
                 ),
                 const SizedBox(height: 16),
                 if (_isLoading) const Center(child: CircularProgressIndicator())
                 else ElevatedButton(
                   onPressed: _link,
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 54)),
-                  child: const Text("CONNECT & START", style: TextStyle(fontSize: 16, letterSpacing: 1)),
+                  child: const Text("BAĞLAN & BAŞLAT", style: TextStyle(fontSize: 16, letterSpacing: 1)),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 32),
-          const Text("Recent History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const Text("Geçmiş Yoklamalar", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 16),
           _buildRecentSessions(),
         ],
@@ -203,7 +202,7 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
         });
 
         var recentDocs = docs.take(15).toList();
-        if (recentDocs.isEmpty) return const Text("No recent classrooms found.", style: TextStyle(color: Colors.grey));
+        if (recentDocs.isEmpty) return const Text("Geçmiş sınıf bulunamadı.", style: TextStyle(color: Colors.grey));
 
         return ListView.builder(
           shrinkWrap: true,
@@ -223,13 +222,13 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                   backgroundColor: isFinished ? Colors.grey.shade200 : const Color(0xFF06B6D4).withOpacity(0.2),
                   child: Icon(isFinished ? Icons.history : Icons.sensors, color: isFinished ? Colors.grey : const Color(0xFF06B6D4)),
                 ),
-                title: Text(data['className'] ?? "Classroom", style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("Status: ${data['status'].toString().toUpperCase()} \nCode: ${recentDocs[index].id}"),
+                title: Text(data['className'] ?? "Sınıf", style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text("Durum: ${data['status'].toString().toUpperCase()} \nKod: ${recentDocs[index].id}"),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
                 onTap: () {
                   setState(() {
                     _codeController.text = recentDocs[index].id;
-                    _classNameController.text = data['className'] ?? "Classroom";
+                    _classNameController.text = data['className'] ?? "Sınıf";
                     _isLinked = true;
                     _isBroadcasting = false;
                   });
@@ -245,7 +244,6 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
   Widget _buildDashboard() {
     return Column(
       children: [
-        // Top Control Panel
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
@@ -265,13 +263,13 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ChoiceChip(
-                    label: const Text("Rotate Code"),
+                    label: const Text("Kodu Değiştir"),
                     selected: !_isAutoStopMode,
                     selectedColor: const Color(0xFF4F46E5).withOpacity(0.2),
                     onSelected: _isBroadcasting ? null : (v) => setState(() => _isAutoStopMode = false),
                   ),
                   ChoiceChip(
-                    label: const Text("Auto-Turn Off"),
+                    label: const Text("Otomatik Kapanma"),
                     selected: _isAutoStopMode,
                     selectedColor: Colors.orangeAccent.withOpacity(0.2),
                     onSelected: _isBroadcasting ? null : (v) => setState(() => _isAutoStopMode = true),
@@ -287,11 +285,11 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                       value: _rotationSeconds.toDouble(),
                       activeColor: const Color(0xFF4F46E5),
                       min: 5, max: 120, divisions: 23,
-                      label: "$_rotationSeconds sec",
+                      label: "$_rotationSeconds sn",
                       onChanged: _isBroadcasting ? null : (v) => setState(() => _rotationSeconds = v.toInt()),
                     ),
                   ),
-                  Text("${_rotationSeconds}s", style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text("${_rotationSeconds}sn", style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 10),
@@ -302,7 +300,7 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                   minimumSize: const Size(double.infinity, 54),
                 ),
                 icon: Icon(_isBroadcasting ? Icons.pause : Icons.play_arrow),
-                label: Text(_isBroadcasting ? "STOP ATTENDANCE" : "START ATTENDANCE", style: const TextStyle(letterSpacing: 1)),
+                label: Text(_isBroadcasting ? "YOKLAMAYI DURDUR" : "YOKLAMAYI BAŞLAT", style: const TextStyle(letterSpacing: 1)),
                 onPressed: () {
                   if (_isBroadcasting) {
                     _service.stopBroadcasting(_codeController.text);
@@ -322,7 +320,6 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
           ),
         ),
 
-        // Bottom List Section
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('sessions').doc(_codeController.text).collection('attendance').orderBy('timestamp', descending: true).snapshots(),
@@ -337,18 +334,18 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Present: ${docs.length}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        Text("Mevcut: ${docs.length}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
                         Row(
                           children: [
                             IconButton(
                               onPressed: docs.isEmpty ? null : () => _printPDF(docs),
                               icon: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-                              tooltip: "Export PDF",
+                              tooltip: "PDF'e Aktar",
                             ),
                             IconButton(
                               onPressed: docs.isEmpty ? null : () => _exportExcel(docs),
                               icon: const Icon(Icons.table_chart, color: Colors.green),
-                              tooltip: "Export Excel",
+                              tooltip: "Excel'e Aktar",
                             ),
                           ],
                         ),
@@ -367,11 +364,11 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
                           child: ListTile(
                             leading: CircleAvatar(backgroundColor: Colors.grey.shade100, child: const Icon(Icons.person, color: Colors.grey)),
-                            title: Text(data['studentName'] ?? "Student", style: const TextStyle(fontWeight: FontWeight.bold)),
+                            title: Text(data['studentName'] ?? "Öğrenci", style: const TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text(data['studentEmail'] ?? "", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                             trailing: IconButton(
                               icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                              tooltip: "Kick Student",
+                              tooltip: "Öğrenciyi Çıkar",
                               onPressed: () => _service.kickStudent(_codeController.text, docs[index].id),
                             ),
                           ),
@@ -388,7 +385,7 @@ class _TeacherRemoteScreenState extends State<TeacherRemoteScreen> {
                         setState(() { _isLinked = false; _isBroadcasting = false; _codeController.clear(); _classNameController.clear(); });
                       },
                       icon: const Icon(Icons.done_all),
-                      label: const Text("FINISH & CLOSE CLASSROOM"),
+                      label: const Text("SINIFI BİTİR VE KAPAT"),
                     ),
                   ),
                 ],

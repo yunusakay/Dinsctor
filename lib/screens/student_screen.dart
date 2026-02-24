@@ -15,7 +15,7 @@ class StudentScreen extends StatefulWidget {
 class _StudentScreenState extends State<StudentScreen> {
   final AttendanceService _service = AttendanceService();
   bool _isProcessing = false;
-  bool _isLeaving = false; // NEW: Tracks if the user voluntarily clicked leave
+  bool _isLeaving = false;
   String? _activeSessionId;
 
   void _handleExit() async {
@@ -32,7 +32,7 @@ class _StudentScreenState extends State<StudentScreen> {
       if (scannedToken != null) {
         setState(() => _isProcessing = true);
 
-        String studentName = FirebaseAuth.instance.currentUser?.displayName ?? "Student";
+        String studentName = FirebaseAuth.instance.currentUser?.displayName ?? "Öğrenci";
         bool success = await _service.submitAttendance(scannedToken, studentName);
 
         if (mounted) {
@@ -62,7 +62,7 @@ class _StudentScreenState extends State<StudentScreen> {
         title: Icon(success ? Icons.check_circle : Icons.error,
             color: success ? Colors.green : Colors.red, size: 60),
         content: Text(
-            success ? "Attendance Marked!" : "Invalid or Expired QR code.",
+            success ? "Yoklama Alındı!" : "Geçersiz veya Süresi Dolmuş QR kod.",
             textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         actions: [
           Center(
@@ -72,7 +72,7 @@ class _StudentScreenState extends State<StudentScreen> {
                 Navigator.pop(context);
                 setState(() => _isProcessing = false);
               },
-              child: const Text("OK"),
+              child: const Text("TAMAM"),
             ),
           )
         ],
@@ -85,20 +85,14 @@ class _StudentScreenState extends State<StudentScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text("Student Panel", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Öğrenci Paneli", style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF4F46E5),
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70),
-            onPressed: _handleExit,
-          ),
-          IconButton(
-            icon: const Icon(Icons.power_settings_new, color: Colors.redAccent),
-            onPressed: () => SystemChannels.platform.invokeMethod('SystemNavigator.pop'),
-          ),
+          IconButton(icon: const Icon(Icons.logout, color: Colors.white70), onPressed: _handleExit),
+          IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.redAccent), onPressed: () => SystemChannels.platform.invokeMethod('SystemNavigator.pop')),
         ],
       ),
       body: _activeSessionId == null
@@ -116,7 +110,7 @@ class _StudentScreenState extends State<StudentScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text("SCAN CLASSROOM QR", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              const Text("SINIF QR KODUNU TARA", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
               const SizedBox(height: 30),
               Container(
                 width: 250,
@@ -128,7 +122,7 @@ class _StudentScreenState extends State<StudentScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-              const Text("Align the projector code within the frame", style: TextStyle(color: Colors.white70, fontSize: 16)),
+              const Text("Projektördeki kodu çerçevenin içine hizalayın", style: TextStyle(color: Colors.white70, fontSize: 16)),
             ],
           ),
         ),
@@ -143,8 +137,27 @@ class _StudentScreenState extends State<StudentScreen> {
         if (!sessionSnapshot.hasData) return const Center(child: CircularProgressIndicator());
 
         var sessionData = sessionSnapshot.data!.data() as Map<String, dynamic>?;
-        String teacherName = sessionData?['teacherName'] ?? "Teacher";
-        String className = sessionData?['className'] ?? "Classroom";
+
+        // --- FIXED: Teacher Finished Classroom Logic ---
+        if (sessionData?['status'] == 'finished') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _activeSessionId != null) {
+              setState(() {
+                _activeSessionId = null;
+                _isLeaving = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text("Ders öğretmen tarafından sonlandırıldı."),
+                backgroundColor: Colors.blue,
+              ));
+            }
+          });
+          return const Center(child: CircularProgressIndicator()); // Returns to scanner silently
+        }
+        // ------------------------------------------------
+
+        String teacherName = sessionData?['teacherName'] ?? "Öğretmen";
+        String className = sessionData?['className'] ?? "Sınıf";
 
         return Column(
           children: [
@@ -160,7 +173,7 @@ class _StudentScreenState extends State<StudentScreen> {
                   const Icon(Icons.school, size: 60, color: Colors.white),
                   const SizedBox(height: 16),
                   Text(className, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-                  Text("Instructor: $teacherName", style: const TextStyle(fontSize: 16, color: Colors.white70)),
+                  Text("Öğretmen: $teacherName", style: const TextStyle(fontSize: 16, color: Colors.white70)),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
@@ -169,18 +182,12 @@ class _StudentScreenState extends State<StudentScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: () async {
-                      // FIXED: Marks this as a voluntary exit so the kicked snackbar doesn't trigger
                       setState(() => _isLeaving = true);
                       await _service.leaveClassroom(_activeSessionId!);
-                      if (mounted) {
-                        setState(() {
-                          _activeSessionId = null;
-                          _isLeaving = false; // Reset the flag
-                        });
-                      }
+                      if (mounted) setState(() { _activeSessionId = null; _isLeaving = false; });
                     },
                     icon: const Icon(Icons.exit_to_app),
-                    label: const Text("Leave Classroom", style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text("Sınıftan Ayrıl", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -190,7 +197,7 @@ class _StudentScreenState extends State<StudentScreen> {
               padding: EdgeInsets.all(20),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text("Classmates Present", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                child: Text("Sınıftakiler", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
               ),
             ),
 
@@ -203,14 +210,12 @@ class _StudentScreenState extends State<StudentScreen> {
                   final students = snapshot.data!.docs;
                   final myUid = FirebaseAuth.instance.currentUser?.uid;
 
-                  // FIXED: Auto-Kick Detection properly ignores voluntary leaves
                   bool amIStillInClass = students.any((doc) => (doc.data() as Map<String, dynamic>)['studentId'] == myUid);
                   if (!amIStillInClass && snapshot.connectionState == ConnectionState.active) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      // Only show the snackbar if they didn't hit the leave button
                       if (mounted && !_isLeaving && _activeSessionId != null) {
                         setState(() => _activeSessionId = null);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("You were removed by the teacher."), backgroundColor: Colors.red));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Öğretmen tarafından dersten çıkarıldınız."), backgroundColor: Colors.red));
                       }
                     });
                     if (!_isLeaving) return const Center(child: CircularProgressIndicator());
@@ -232,7 +237,7 @@ class _StudentScreenState extends State<StudentScreen> {
                             backgroundColor: isMe ? const Color(0xFF4F46E5).withOpacity(0.2) : Colors.grey.shade200,
                             child: Icon(Icons.person, color: isMe ? const Color(0xFF4F46E5) : Colors.grey),
                           ),
-                          title: Text(data['studentName'] ?? "Anonymous", style: TextStyle(fontWeight: isMe ? FontWeight.bold : FontWeight.normal)),
+                          title: Text(data['studentName'] ?? "İsimsiz", style: TextStyle(fontWeight: isMe ? FontWeight.bold : FontWeight.normal)),
                           trailing: const Icon(Icons.check_circle, color: Colors.green),
                         ),
                       );
