@@ -19,9 +19,7 @@ class _StudentScreenState extends State<StudentScreen> {
 
   void _handleExit() async {
     await FirebaseAuth.instance.signOut();
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+    if (mounted) Navigator.pushReplacementNamed(context, '/login');
   }
 
   void _onDetect(BarcodeCapture capture) async {
@@ -34,7 +32,6 @@ class _StudentScreenState extends State<StudentScreen> {
         setState(() => _isProcessing = true);
 
         String studentName = FirebaseAuth.instance.currentUser?.displayName ?? "Student";
-
         bool success = await _service.submitAttendance(scannedToken, studentName);
 
         if (mounted) {
@@ -60,18 +57,22 @@ class _StudentScreenState extends State<StudentScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Icon(success ? Icons.check_circle : Icons.error,
             color: success ? Colors.green : Colors.red, size: 60),
         content: Text(
             success ? "Attendance Marked!" : "Invalid or Expired QR code.",
-            textAlign: TextAlign.center),
+            textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() => _isProcessing = false);
-            },
-            child: const Text("OK"),
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: success ? Colors.green : Colors.red, foregroundColor: Colors.white),
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() => _isProcessing = false);
+              },
+              child: const Text("OK"),
+            ),
           )
         ],
       ),
@@ -81,52 +82,57 @@ class _StudentScreenState extends State<StudentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text("Student Panel"),
-        backgroundColor: const Color(0xFF2D3748),
+        title: const Text("Student Panel", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF4F46E5),
         foregroundColor: Colors.white,
+        elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.account_circle),
-            onSelected: (value) => value == 'logout' ? _handleExit() : null,
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'logout', child: Text("Logout")),
-            ],
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white70),
+            onPressed: _handleExit,
           ),
           IconButton(
-            icon: const Icon(Icons.power_settings_new, color: Colors.red),
+            icon: const Icon(Icons.power_settings_new, color: Colors.redAccent),
             onPressed: () => SystemChannels.platform.invokeMethod('SystemNavigator.pop'),
           ),
         ],
       ),
       body: _activeSessionId == null
-          ? Stack(
-        children: [
-          MobileScanner(onDetect: _onDetect),
-          Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          const Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: Text(
-              "Scan QR code to join class",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          )
-        ],
-      )
+          ? _buildScannerView()
           : _buildClassroomView(),
+    );
+  }
+
+  Widget _buildScannerView() {
+    return Stack(
+      children: [
+        MobileScanner(onDetect: _onDetect),
+        // Dark frosted overlay
+        Container(color: Colors.black.withOpacity(0.5)),
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text("SCAN CLASSROOM QR", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              const SizedBox(height: 30),
+              Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.cyanAccent, width: 4),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
+                ),
+              ),
+              const SizedBox(height: 30),
+              const Text("Align the projector code within the frame", style: TextStyle(color: Colors.white70, fontSize: 16)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -138,75 +144,90 @@ class _StudentScreenState extends State<StudentScreen> {
 
         var sessionData = sessionSnapshot.data!.data() as Map<String, dynamic>?;
         String teacherName = sessionData?['teacherName'] ?? "Teacher";
+        String className = sessionData?['className'] ?? "Classroom";
 
         return Column(
           children: [
+            // Premium Header Card
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              color: Colors.blueGrey.shade50,
+              padding: const EdgeInsets.all(32),
+              decoration: const BoxDecoration(
+                color: Color(0xFF4F46E5),
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(32), bottomRight: Radius.circular(32)),
+              ),
               child: Column(
                 children: [
-                  Text("Instructor: $teacherName",
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
+                  const Icon(Icons.school, size: 60, color: Colors.white),
+                  const SizedBox(height: 16),
+                  Text(className, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text("Instructor: $teacherName", style: const TextStyle(fontSize: 16, color: Colors.white70)),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.redAccent,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
                     onPressed: () async {
                       await _service.leaveClassroom(_activeSessionId!);
                       setState(() => _activeSessionId = null);
                     },
-                    icon: const Icon(Icons.exit_to_app, color: Colors.orange),
-                    label: const Text("Leave Classroom", style: TextStyle(color: Colors.orange)),
+                    icon: const Icon(Icons.exit_to_app),
+                    label: const Text("Leave Classroom", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
             ),
+
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Text("Classmates Present", style: TextStyle(fontSize: 16, color: Colors.grey)),
+              padding: EdgeInsets.all(20),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text("Classmates Present", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              ),
             ),
+
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('sessions')
-                    .doc(_activeSessionId)
-                    .collection('attendance')
-                    .snapshots(),
+                stream: FirebaseFirestore.instance.collection('sessions').doc(_activeSessionId).collection('attendance').snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
                   final students = snapshot.data!.docs;
                   final myUid = FirebaseAuth.instance.currentUser?.uid;
 
-                  // --- NEW: Auto-Kick Detection ---
-                  // Checks if the current user is still inside the database list
-                  bool amIStillInClass = students.any((doc) {
-                    var data = doc.data() as Map<String, dynamic>;
-                    return data['studentId'] == myUid;
-                  });
-
+                  // Auto-Kick Detection
+                  bool amIStillInClass = students.any((doc) => (doc.data() as Map<String, dynamic>)['studentId'] == myUid);
                   if (!amIStillInClass && snapshot.connectionState == ConnectionState.active) {
-                    // If teacher kicked you, delay by 1 frame to avoid build errors, then exit
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) {
                         setState(() => _activeSessionId = null);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("You were removed by the teacher.")),
-                        );
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("You were removed by the teacher."), backgroundColor: Colors.red));
                       }
                     });
                     return const Center(child: CircularProgressIndicator());
                   }
-                  // ---------------------------------
 
                   return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: students.length,
                     itemBuilder: (context, index) {
                       var data = students[index].data() as Map<String, dynamic>;
-                      return ListTile(
-                        leading: const Icon(Icons.person),
-                        title: Text(data['studentName'] ?? "Anonymous"),
-                        trailing: const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      bool isMe = data['studentId'] == myUid;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade200)),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: isMe ? const Color(0xFF4F46E5).withOpacity(0.2) : Colors.grey.shade200,
+                            child: Icon(Icons.person, color: isMe ? const Color(0xFF4F46E5) : Colors.grey),
+                          ),
+                          title: Text(data['studentName'] ?? "Anonymous", style: TextStyle(fontWeight: isMe ? FontWeight.bold : FontWeight.normal)),
+                          trailing: const Icon(Icons.check_circle, color: Colors.green),
+                        ),
                       );
                     },
                   );

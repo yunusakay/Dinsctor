@@ -51,43 +51,49 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // --- RESTORED: Reset Password Logic ---
-  // --- FIXED: Renamed local variable, fixed async gaps ---
   void _resetPassword() async {
     final TextEditingController resetEmailController = TextEditingController();
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       isScrollControlled: true,
       builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Reset Password", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            TextField(controller: resetEmailController, decoration: const InputDecoration(labelText: "Email")),
-            const SizedBox(height: 20),
+            const Text("Reset Password", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text("Enter your email and we will send you a reset link.", style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 24),
+            TextField(
+              controller: resetEmailController,
+              decoration: const InputDecoration(labelText: "Email Address", prefixIcon: Icon(Icons.email_outlined)),
+            ),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
                 try {
                   await _auth.sendPasswordResetEmail(email: resetEmailController.text.trim());
-                  if (!context.mounted) return; // FIXED ASYNC GAP
+                  if (!context.mounted) return;
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Reset link sent!")));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Reset link sent!"), backgroundColor: Colors.green));
                 } catch (e) {
-                  if (!context.mounted) return; // FIXED ASYNC GAP
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
                 }
               },
-              child: const Text("Send Link"),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white),
+              child: const Text("Send Reset Link"),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  // --- FIXED: Async Gaps in Submit ---
   Future<void> _submit() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
     if (!_isLogin && _nameController.text.isEmpty) {
@@ -122,8 +128,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _navigateBasedOnRole(cred.user!.uid);
       }
     } catch (e) {
-      if (!mounted) return; // FIXED ASYNC GAP
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -132,50 +138,169 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     if (_auth.currentUser != null) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(backgroundColor: Colors.white, body: Center(child: CircularProgressIndicator()));
     }
+
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            children: [
-              const Text("Dinsctor", style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Color(0xFF3182CE))),
-              const SizedBox(height: 40),
-              if (!_isLogin) ...[
-                TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Full Name", border: OutlineInputBorder())),
-                const SizedBox(height: 15),
-                const Text("Account Type:"),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Radio(value: 'student', groupValue: _role, onChanged: (v) => setState(() => _role = v!)),
-                    const Text("Student"),
-                    Radio(value: 'teacher', groupValue: _role, onChanged: (v) => setState(() => _role = v!)),
-                    const Text("Teacher"),
-                  ],
-                ),
-              ],
-              TextField(controller: _emailController, decoration: const InputDecoration(labelText: "Email", border: OutlineInputBorder())),
-              const SizedBox(height: 15),
-              TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder())),
-              CheckboxListTile(
-                title: const Text("Remember Me"),
-                value: _rememberMe,
-                onChanged: (v) => setState(() => _rememberMe = v!),
-                controlAffinity: ListTileControlAffinity.leading,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)], // Indigo to Cyan gradient
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // App Logo / Icon
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.qr_code_scanner_rounded, size: 80, color: Colors.white),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text("Dinsctor", style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 2)),
+                  const Text("Smart Classroom Attendance", style: TextStyle(fontSize: 16, color: Colors.white70)),
+                  const SizedBox(height: 40),
+
+                  // Floating Glass Card
+                  Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 30, offset: const Offset(0, 10)),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(_isLogin ? "Welcome Back" : "Create Account",
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1F2937))),
+                        const SizedBox(height: 24),
+
+                        if (!_isLogin) ...[
+                          TextField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(labelText: "Full Name", prefixIcon: Icon(Icons.person_outline)),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text("Account Type:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _role = 'student'),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: _role == 'student' ? const Color(0xFF4F46E5).withOpacity(0.1) : Colors.transparent,
+                                      border: Border.all(color: _role == 'student' ? const Color(0xFF4F46E5) : Colors.grey.shade300, width: 2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(child: Text("Student", style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: _role == 'student' ? const Color(0xFF4F46E5) : Colors.grey
+                                    ))),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _role = 'teacher'),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: _role == 'teacher' ? const Color(0xFF4F46E5).withOpacity(0.1) : Colors.transparent,
+                                      border: Border.all(color: _role == 'teacher' ? const Color(0xFF4F46E5) : Colors.grey.shade300, width: 2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(child: Text("Teacher", style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: _role == 'teacher' ? const Color(0xFF4F46E5) : Colors.grey
+                                    ))),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        TextField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.email_outlined)),
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock_outline)),
+                        ),
+                        const SizedBox(height: 16),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _rememberMe,
+                                  activeColor: const Color(0xFF4F46E5),
+                                  onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                                ),
+                                const Text("Remember me", style: TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                            if (_isLogin)
+                              TextButton(
+                                onPressed: _resetPassword,
+                                child: const Text("Forgot Password?", style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold)),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : ElevatedButton(
+                          onPressed: _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4F46E5),
+                            foregroundColor: Colors.white,
+                            shadowColor: const Color(0xFF4F46E5).withOpacity(0.5),
+                            elevation: 8,
+                          ),
+                          child: Text(_isLogin ? "LOG IN" : "SIGN UP"),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  TextButton(
+                    onPressed: () => setState(() => _isLogin = !_isLogin),
+                    child: Text(
+                      _isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in",
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              _isLoading ? const CircularProgressIndicator() : SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _submit, child: Text(_isLogin ? "LOGIN" : "REGISTER"))),
-              TextButton(onPressed: () => setState(() => _isLogin = !_isLogin), child: Text(_isLogin ? "Need an account? Register" : "Have an account? Login")),
-              // --- RESTORED: Forgot Password Button ---
-              if (_isLogin) TextButton(onPressed: _resetPassword, child: const Text("Forgot Password?")),
-            ],
+            ),
           ),
         ),
       ),
