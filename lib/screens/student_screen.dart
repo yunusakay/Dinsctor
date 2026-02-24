@@ -15,6 +15,7 @@ class StudentScreen extends StatefulWidget {
 class _StudentScreenState extends State<StudentScreen> {
   final AttendanceService _service = AttendanceService();
   bool _isProcessing = false;
+  bool _isLeaving = false; // NEW: Tracks if the user voluntarily clicked leave
   String? _activeSessionId;
 
   void _handleExit() async {
@@ -110,7 +111,6 @@ class _StudentScreenState extends State<StudentScreen> {
     return Stack(
       children: [
         MobileScanner(onDetect: _onDetect),
-        // Dark frosted overlay
         Container(color: Colors.black.withOpacity(0.5)),
         Center(
           child: Column(
@@ -148,7 +148,6 @@ class _StudentScreenState extends State<StudentScreen> {
 
         return Column(
           children: [
-            // Premium Header Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(32),
@@ -170,8 +169,15 @@ class _StudentScreenState extends State<StudentScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: () async {
+                      // FIXED: Marks this as a voluntary exit so the kicked snackbar doesn't trigger
+                      setState(() => _isLeaving = true);
                       await _service.leaveClassroom(_activeSessionId!);
-                      setState(() => _activeSessionId = null);
+                      if (mounted) {
+                        setState(() {
+                          _activeSessionId = null;
+                          _isLeaving = false; // Reset the flag
+                        });
+                      }
                     },
                     icon: const Icon(Icons.exit_to_app),
                     label: const Text("Leave Classroom", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -197,16 +203,17 @@ class _StudentScreenState extends State<StudentScreen> {
                   final students = snapshot.data!.docs;
                   final myUid = FirebaseAuth.instance.currentUser?.uid;
 
-                  // Auto-Kick Detection
+                  // FIXED: Auto-Kick Detection properly ignores voluntary leaves
                   bool amIStillInClass = students.any((doc) => (doc.data() as Map<String, dynamic>)['studentId'] == myUid);
                   if (!amIStillInClass && snapshot.connectionState == ConnectionState.active) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
+                      // Only show the snackbar if they didn't hit the leave button
+                      if (mounted && !_isLeaving && _activeSessionId != null) {
                         setState(() => _activeSessionId = null);
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("You were removed by the teacher."), backgroundColor: Colors.red));
                       }
                     });
-                    return const Center(child: CircularProgressIndicator());
+                    if (!_isLeaving) return const Center(child: CircularProgressIndicator());
                   }
 
                   return ListView.builder(
